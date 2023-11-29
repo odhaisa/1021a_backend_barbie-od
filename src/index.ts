@@ -1,32 +1,56 @@
-import express from 'express';
+import express, {Request} from 'express';
+import BancoMongoDB from './infra/banco/banco-mongodb'
+import ListarFilme from './aplicacao/listar-filme.use-case'
+import SalvaFilme from './aplicacao/salva-filme.use-case'
+import cors from 'cors'
 
-// Cria uma instância do aplicativo Express
+const bancoMongoDB = new BancoMongoDB()
 const app = express();
+app.use(express.json())
+app.use(cors());
 
-type Filme = {
-    
-}
-// Define uma rota padrão
-app.get('/filmes', (req, res) => {
-    const filme = {
-        titulo: 'Vingadores',
-        descricao: 'Filme dos Vingadores',
-        foto: 'https://live.staticflickr.com/7270/6976087418_59719341f5_b.jpg',
-    }
-    res.send([filme]);
+app.get('/filmes', async (req, res) => {
+    const listarFilme = new ListarFilme(bancoMongoDB)
+    const filmes = await listarFilme.execute()
+    res.status(200).send(filmes)    
 });
 
-app.post('/filmes', (req, res) => {
-    const filme = {
-        titulo: 'The nun',
-        descricao: 'Filme da freira',
-        foto: 'https://encrypted-tbn2.gstatic.com/images?q=tbn:ANd9GcSEtpnOnlSI3UkF1Xkf_1pboQcKZ5nvIzhKw6Xqs4d_8xKF6JKN',
+app.post('/filmes', async (req:Request, res) => {
+    const {id, titulo, descricao, foto} = req.body;
+    const filme:Filme = {
+        id,
+        titulo,
+        descricao,
+        foto
     }
+    const salvaFilme = new SalvaFilme(bancoMongoDB)
+    const result = await salvaFilme.execute(filme)
+    if(!result) return res.status(400).send({"mensagem":"Erro ao cadastrar filme"})
+    filmes_repositorio.push(filme)
     res.status(201).send(filme)
+});
+
+app.delete('/filmes/:id', (req, res) => {
+    const id = parseInt(req.params.id)
+    const filme = filmes_repositorio.find(filme => filme.id === id)
+    if (!filme) return res.status(404).send(filme)
+    const filterFilme = filmes_repositorio.filter(filme => filme.id !== id)
+    filmes_repositorio = filterFilme
+    res.status(200).send(filme)
 });
 
 
 // Inicia o servidor
-app.listen(3000, ()=> {
+app.listen(3000, () => {
     console.log('Servidor iniciado na porta 3000');
 });
+//
+
+type Filme = {
+    id: number,
+    titulo: string,
+    descricao: string,
+    foto: string,
+}
+
+let filmes_repositorio:Filme[] = []
